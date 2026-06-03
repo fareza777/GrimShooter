@@ -10,25 +10,48 @@ export class PlayScene extends Phaser.Scene {
         this.isGameOver = false;
         const width = this.scale.width; // 600
         const height = this.scale.height; // 800
-        const groundY = 700; // Leave bottom 100px for HTML controls
+        
+        // 1. Dynamic Level Width (semakin tinggi level, semakin panjang)
+        this.levelWidth = 1600 + (this.currentLevel * 200);
+        this.physics.world.setBounds(0, 0, this.levelWidth, height);
 
-        // 1. Parallax Backgrounds
-        this.bgSky = this.add.tileSprite(width / 2, height / 2, width, height, 'sky');
-        this.bgMountains = this.add.tileSprite(width / 2, height - 150, width + 200, 400, 'mountain');
-        this.bgMountains.setScrollFactor(0.5);
+        // 2. Parallax Background (Lebar mengikuti level)
+        this.bgSky = this.add.tileSprite(this.levelWidth / 2, height / 2, this.levelWidth, height, 'sky');
+        this.bgSky.setScrollFactor(0); // Tetap di tempat relatif terhadap kamera, atau bisa di-set 0.1 untuk parallax
+        this.bgMountains = this.add.tileSprite(this.levelWidth / 2, height - 150, this.levelWidth, 400, 'mountain');
+        this.bgMountains.setScrollFactor(0.2);
 
-        // 2. Ground Platforms
+        // 3. Ground & Pits (Jurang)
         this.platforms = this.physics.add.staticGroup();
-        for (let x = 0; x < width + 64; x += 64) {
-            this.platforms.create(x, groundY, 'ground').refreshBody();
-            this.platforms.create(x, groundY + 64, 'ground').refreshBody();
-        }
-        // Floating platforms
-        this.platforms.create(width * 0.3, groundY - 150, 'ground').setScale(2, 1).refreshBody();
-        this.platforms.create(width * 0.7, groundY - 220, 'ground').setScale(2, 1).refreshBody();
+        const segmentWidth = 64;
+        const totalSegments = Math.ceil(this.levelWidth / segmentWidth);
+        let skipNext = 0;
 
-        // 3. Player Setup
-        this.player = this.physics.add.sprite(100, groundY - 100, 'player_idle');
+        for (let i = 0; i < totalSegments; i++) {
+            const x = i * segmentWidth;
+            const isStartOrEnd = i < 5 || i > totalSegments - 10; // Aman di awal dan akhir
+            
+            if (!isStartOrEnd && skipNext <= 0 && Math.random() < 0.15) {
+                // Buat jurang (skip 1-2 segmen)
+                skipNext = Math.floor(Math.random() * 2) + 1;
+                continue; 
+            }
+            
+            if (skipNext > 0) {
+                skipNext--;
+                continue;
+            }
+
+            // Ground dasar
+            this.platforms.create(x, 700, 'ground').refreshBody();
+            this.platforms.create(x, 764, 'ground').refreshBody();
+        }
+
+        // 4. Floating Platforms (Di atas jurang atau sebagai tangga)
+        this.createFloatingPlatforms();
+
+        // 5. Player Setup
+        this.player = this.physics.add.sprite(100, 600, 'player_idle');
         this.player.setCollideWorldBounds(true);
         this.player.setBounce(0.1);
         this.playerSpeed = 250;
@@ -36,9 +59,13 @@ export class PlayScene extends Phaser.Scene {
         this.player.canShoot = true;
         this.shootDelay = 200;
 
+        // 6. Camera Follow
+        this.cameras.main.setBounds(0, 0, this.levelWidth, height);
+        this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+
         this.physics.add.collider(this.player, this.platforms);
 
-        // 4. Particle Emitters
+        // 7. Particle Emitters
         this.muzzleFlash = this.add.particles(0, 0, 'spark', {
             speed: 100, scale: { start: 1, end: 0 }, blendMode: 'ADD', lifespan: 100, on: false
         });
@@ -47,35 +74,107 @@ export class PlayScene extends Phaser.Scene {
             scale: { start: 0.5, end: 1.5 }, blendMode: 'NORMAL', lifespan: 600, gravityY: -50, on: false
         });
 
-        // 5. Groups
-        this.bullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 30, runChildUpdate: true });
+        // 8. Groups
+        this.bullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 50, runChildUpdate: true });
         this.enemies = this.physics.add.group();
         this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 30, runChildUpdate: true });
 
-        // 6. Collisions & Overlaps
+        // 9. Collisions
         this.physics.add.collider(this.enemies, this.platforms);
         this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
         this.physics.add.overlap(this.enemyBullets, this.player, this.hitPlayer, null, this);
         this.physics.add.overlap(this.enemies, this.player, this.hitPlayer, null, this);
 
-        // 7. Enemy Spawner
-        this.spawnEvent = this.time.addEvent({
-            delay: 2000, callback: this.spawnEnemy, callbackScope: this, loop: true
-        });
+        // 10. Goal / Exit Portal
+        this.createGoal();
 
-        // 8. UI Text
+        // 11. Enemy Spawner (Place enemies on platforms)
+        this.spawnEnemiesForLevel();
+
+        // 12. UI Text (Fixed to camera)
         this.levelText = this.add.text(20, 20, `LEVEL ${this.currentLevel}`, { 
             fontSize: '28px', fill: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 
-        });
+        }).setScrollFactor(0);
         this.scoreText = this.add.text(20, 55, `SCORE: ${this.score}`, { 
             fontSize: '20px', fill: '#f1c40f', fontStyle: 'bold' 
+        }).setScrollFactor(0);
+    }
+
+    createFloatingPlatforms() {
+        const numPlatforms = 4 + Math.floor(this.currentLevel / 5);
+        for (let i = 0; i < numPlatforms; i++) {
+            const x = 300 + Math.random() * (this.levelWidth - 600);
+            const y = 400 + Math.random() * 200; // Tinggi antara 400 - 600
+            const platformWidth = 2 + Math.floor(Math.random() * 3); // 2-4 blok
+            
+            for (let j = 0; j < platformWidth; j++) {
+                this.platforms.create(x + (j * 64), y, 'ground').refreshBody();
+            }
+        }
+    }
+
+    createGoal() {
+        const goalX = this.levelWidth - 150;
+        const goalY = 636; // Di atas ground
+        
+        // Visual portal
+        this.goal = this.add.rectangle(goalX, goalY, 60, 120, 0x00ff00, 0.3);
+        this.goal.setStrokeStyle(4, 0x00ff00);
+        this.physics.add.existing(this.goal, true); // Static body
+        
+        // Particle effect untuk portal
+        this.goalParticles = this.add.particles(goalX, goalY, 'spark', {
+            speed: 50, scale: { start: 0.5, end: 0 }, blendMode: 'ADD', lifespan: 800, frequency: 100
         });
+
+        this.physics.add.overlap(this.player, this.goal, this.reachGoal, null, this);
+        
+        // Teks petunjuk
+        this.add.text(goalX, goalY - 80, 'GOAL', {
+            fontSize: '20px', fill: '#00ff00', fontStyle: 'bold'
+        }).setOrigin(0.5).setScrollFactor(0); // Tetap di atas portal
+    }
+
+    spawnEnemiesForLevel() {
+        const numEnemies = 3 + Math.floor(this.currentLevel / 3);
+        const groundY = 700;
+        
+        for (let i = 0; i < numEnemies; i++) {
+            const x = 400 + Math.random() * (this.levelWidth - 800);
+            const y = groundY - 100;
+            
+            const enemy = this.enemies.create(x, y, 'enemy');
+            enemy.setCollideWorldBounds(true);
+            enemy.health = 2 + Math.floor(this.currentLevel / 10);
+            enemy.speed = 60 + (this.currentLevel * 2);
+            enemy.direction = -1; // Mulai berjalan ke kiri
+            
+            // Enemy shooting logic
+            this.time.addEvent({
+                delay: 1500 - (this.currentLevel * 5), // Semakin tinggi level, semakin cepat nembak
+                callback: () => this.enemyShoot(enemy),
+                loop: true
+            });
+        }
+    }
+
+    enemyShoot(enemy) {
+        if (!enemy.active || this.isGameOver) return;
+        // Hanya tembak jika player dalam jangkauan tertentu
+        if (Math.abs(enemy.x - this.player.x) < 400) {
+            const eBullet = this.enemyBullets.get(enemy.x, enemy.y - 10);
+            if (eBullet) {
+                eBullet.setActive(true).setVisible(true).setTexture('enemy_bullet');
+                eBullet.body.allowGravity = false;
+                const angle = this.physics.moveToObject(eBullet, this.player, 250);
+                eBullet.setVelocity(Math.cos(angle) * 250, Math.sin(angle) * 250);
+            }
+        }
     }
 
     update() {
         if (this.isGameOver) return;
 
-        // Read from global HTML input state for zero-latency mobile response
         const input = window.__input || {};
 
         // Player Movement & Animation
@@ -92,34 +191,61 @@ export class PlayScene extends Phaser.Scene {
             this.player.anims.play('player_idle', true);
         }
 
-        // Jump (one-shot)
+        // Jump
         if (input.jumpPressed) {
             if (this.player.body.touching.down) {
                 this.player.setVelocityY(this.jumpVelocity);
             }
-            input.jumpPressed = false; // reset one-shot
+            input.jumpPressed = false;
         }
 
-        // Continuous shooting
+        // Shoot
         if (input.shoot && this.player.canShoot) {
             this.shoot();
             this.player.canShoot = false;
             this.time.delayedCall(this.shootDelay, () => { this.player.canShoot = true; });
         }
-        if (input.shootPressed) {
-            input.shootPressed = false;
-        }
+        if (input.shootPressed) input.shootPressed = false;
 
-        // Cleanup out-of-bounds entities
+        // Enemy Patrol Logic
+        this.enemies.children.entries.forEach(enemy => {
+            if (!enemy.active) return;
+            
+            // Ubah arah jika menabrak dinding atau tepi platform
+            if (enemy.body.blocked.left || enemy.body.blocked.right) {
+                enemy.direction *= -1;
+            }
+            
+            // Cek tepi platform (agar tidak jatuh)
+            const lookAheadX = enemy.x + (enemy.direction * 20);
+            const tilesBelow = this.platforms.getChildren().filter(p => 
+                Math.abs(p.x - lookAheadX) < 32 && p.y > enemy.y && p.y < enemy.y + 60
+            );
+            
+            if (tilesBelow.length === 0 && enemy.body.touching.down) {
+                enemy.direction *= -1; // Berbalik arah jika di tepi jurang
+            }
+
+            enemy.setVelocityX(enemy.speed * enemy.direction);
+            enemy.flipX = enemy.direction === 1;
+        });
+
+        // Cleanup bullets
         this.bullets.children.entries.forEach(b => {
-            if (b.active && (b.x < 0 || b.x > this.scale.width)) b.setActive(false).setVisible(false);
+            if (b.active && (b.x < this.cameras.main.scrollX - 50 || b.x > this.cameras.main.scrollX + 650)) {
+                b.setActive(false).setVisible(false);
+            }
         });
         this.enemyBullets.children.entries.forEach(b => {
-            if (b.active && (b.x < 0 || b.x > this.scale.width || b.y > this.scale.height)) b.setActive(false).setVisible(false);
+            if (b.active && (b.y > this.scale.height || b.x < 0 || b.x > this.levelWidth)) {
+                b.setActive(false).setVisible(false);
+            }
         });
-        this.enemies.children.entries.forEach(e => {
-            if (e.y > this.scale.height + 50) e.destroy();
-        });
+
+        // Fall into pit = Game Over
+        if (this.player.y > this.scale.height + 50) {
+            this.hitPlayer(this.player, null);
+        }
     }
 
     shoot() {
@@ -134,33 +260,6 @@ export class PlayScene extends Phaser.Scene {
         }
     }
 
-    spawnEnemy() {
-        if (this.isGameOver) return;
-        const groundY = 700;
-        const x = this.scale.width + 50;
-        const y = groundY - 100;
-        
-        const enemy = this.enemies.create(x, y, 'enemy');
-        enemy.setVelocityX(-80 - (this.currentLevel * 5));
-        enemy.setCollideWorldBounds(true);
-        enemy.health = 2;
-
-        this.time.addEvent({
-            delay: 1500,
-            callback: () => {
-                if (!enemy.active || this.isGameOver) return;
-                const eBullet = this.enemyBullets.get(enemy.x, enemy.y);
-                if (eBullet) {
-                    eBullet.setActive(true).setVisible(true).setTexture('enemy_bullet');
-                    eBullet.body.allowGravity = false;
-                    const angle = this.physics.moveToObject(eBullet, this.player, 250);
-                    eBullet.setVelocity(Math.cos(angle) * 250, Math.sin(angle) * 250);
-                }
-            },
-            loop: true
-        });
-    }
-
     hitEnemy(bullet, enemy) {
         bullet.setActive(false).setVisible(false);
         enemy.health--;
@@ -172,10 +271,6 @@ export class PlayScene extends Phaser.Scene {
             enemy.destroy();
             this.score += 50;
             this.scoreText.setText(`SCORE: ${this.score}`);
-            
-            if (this.score >= this.currentLevel * 200) {
-                this.nextLevel();
-            }
         }
     }
 
@@ -186,20 +281,31 @@ export class PlayScene extends Phaser.Scene {
         player.setTint(0xff0000);
         this.isGameOver = true;
         
-        this.add.text(this.scale.width / 2, this.scale.height / 2, 'GAME OVER', { 
+        const text = this.add.text(this.cameras.main.scrollX + 300, 400, 'GAME OVER', { 
             fontSize: '56px', fill: '#ff0000', fontStyle: 'bold', stroke: '#000', strokeThickness: 6 
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setScrollFactor(0);
 
         this.time.delayedCall(2500, () => { this.scene.restart(); });
+    }
+
+    reachGoal(player, goal) {
+        if (this.isGameOver) return;
+        this.nextLevel();
     }
 
     nextLevel() {
         if (this.currentLevel < this.maxLevels) {
             this.currentLevel++;
-            this.levelText.setText(`LEVEL ${this.currentLevel}`);
-            this.enemies.clear(true, true);
-            this.enemyBullets.clear(true, true);
             this.cameras.main.flash(500, 255, 255, 255);
+            this.time.delayedCall(600, () => {
+                this.scene.restart();
+            });
+        } else {
+            // Game Completed
+            this.physics.pause();
+            this.add.text(this.cameras.main.scrollX + 300, 400, 'YOU WIN!', { 
+                fontSize: '64px', fill: '#00ff00', fontStyle: 'bold', stroke: '#000', strokeThickness: 6 
+            }).setOrigin(0.5).setScrollFactor(0);
         }
     }
 }
