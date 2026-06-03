@@ -134,6 +134,5 @@ export class BootScene extends Phaser.Scene {
         });
 
         this.scene.start('PlayScene');
-        this.scene.launch('UIScene');
     }
 }

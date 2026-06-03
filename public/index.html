@@ -1,14 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GrimShooter</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta name="theme-color" content="#0d001a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>GrimShooter</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%; width: 100%;
+      background: #050010; font-family: Arial, sans-serif;
+      overscroll-behavior: none; touch-action: none;
+      user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none; overflow: hidden;
+    }
+    body { display: flex; flex-direction: column; }
+
+    #game-container {
+      flex: 1 1 auto; min-height: 0; display: flex;
+      justify-content: center; align-items: center;
+      background: radial-gradient(ellipse at center top, #1a0033 0%, #050010 70%, #000000 100%);
+      position: relative; overflow: hidden;
+    }
+    canvas {
+      display: block;
+      box-shadow: 0 0 32px rgba(124, 77, 255, 0.35), 0 4px 24px rgba(0, 0, 0, 0.8);
+    }
+    body.touch-device #game-container canvas {
+      max-width: 100%; max-height: 100%;
+    }
+
+    #touch-controls {
+      flex: 0 0 100px; display: none; justify-content: space-between;
+      align-items: center; padding: 8px 16px;
+      background: linear-gradient(180deg, rgba(15, 20, 35, 0.96) 0%, rgba(30, 35, 55, 0.96) 100%);
+      border-top: 1px solid rgba(76, 175, 80, 0.25);
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    }
+    .ctrl-group { display: flex; gap: 10px; align-items: center; }
+    .ctrl-btn {
+      border: none; color: #fff; font-weight: bold; font-family: Arial, sans-serif;
+      user-select: none; -webkit-user-select: none; touch-action: none;
+      cursor: pointer; display: flex; justify-content: center; align-items: center;
+      padding: 0; margin: 0; outline: none; -webkit-tap-highlight-color: transparent;
+      transition: transform 0.08s ease, box-shadow 0.08s ease; position: relative;
+    }
+    .ctrl-btn.dpad {
+      width: 56px; height: 56px;
+      background: linear-gradient(145deg, #42a5f5 0%, #1976d2 100%);
+      box-shadow: 0 4px 0 #0d47a1, 0 6px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+      border-radius: 14px;
+    }
+    .ctrl-btn.dpad:active, .ctrl-btn.dpad.pressed {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #0d47a1, 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .ctrl-btn.action {
+      width: 72px; height: 72px;
+      background: linear-gradient(145deg, #ff5252 0%, #d32f2f 100%);
+      box-shadow: 0 5px 0 #b71c1c, 0 7px 14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+      border-radius: 50%; font-size: 28px; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+    }
+    .ctrl-btn.action:active, .ctrl-btn.action.pressed {
+      transform: translateY(3px) scale(0.96);
+      box-shadow: 0 2px 0 #b71c1c, 0 3px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .ctrl-btn.jump {
+      width: 64px; height: 64px;
+      background: linear-gradient(145deg, #66bb6a 0%, #2e7d32 100%);
+      box-shadow: 0 4px 0 #1b5e20, 0 6px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+      border-radius: 50%; font-size: 26px; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+    }
+    .ctrl-btn.jump:active, .ctrl-btn.jump.pressed {
+      transform: translateY(3px) scale(0.96);
+      box-shadow: 0 1px 0 #1b5e20, 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .arrow { width: 0; height: 0; }
+    .arrow-left { border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 16px solid #fff; filter: drop-shadow(1px 0 0 rgba(0, 0, 0, 0.25)); }
+    .arrow-right { border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 16px solid #fff; filter: drop-shadow(-1px 0 0 rgba(0, 0, 0, 0.25)); }
+
+    body.touch-device #touch-controls { display: flex; }
+  </style>
 </head>
 <body>
-    <div id="game-container"></div>
-    <script type="module" src="js/game.js"></script>
+  <div id="game-container"></div>
+  <div id="touch-controls">
+    <div class="ctrl-group left">
+      <button id="btn-left" class="ctrl-btn dpad" type="button" aria-label="Left"><div class="arrow arrow-left"></div></button>
+      <button id="btn-right" class="ctrl-btn dpad" type="button" aria-label="Right"><div class="arrow arrow-right"></div></button>
+    </div>
+    <div class="ctrl-group right">
+      <button id="btn-jump" class="ctrl-btn jump" type="button" aria-label="Jump">▲</button>
+      <button id="btn-action" class="ctrl-btn action" type="button" aria-label="Shoot">🔥</button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      if (isTouch) document.body.classList.add('touch-device');
+    })();
+
+    window.__input = { left: false, right: false, jump: false, jumpPressed: false, shoot: false, shootPressed: false };
+
+    function bindBtn(id, onPress, onRelease) {
+      var btn = document.getElementById(id);
+      if (!btn) return;
+      var press = function(e) { e.preventDefault(); btn.classList.add('pressed'); if (onPress) onPress(); };
+      var release = function(e) { if (e && e.preventDefault) e.preventDefault(); btn.classList.remove('pressed'); if (onRelease) onRelease(); };
+      btn.addEventListener('pointerdown', press);
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointercancel', release);
+      btn.addEventListener('pointerleave', release);
+      btn.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    }
+
+    bindBtn('btn-left', () => { window.__input.left = true; }, () => { window.__input.left = false; });
+    bindBtn('btn-right', () => { window.__input.right = true; }, () => { window.__input.right = false; });
+    bindBtn('btn-jump', () => { window.__input.jump = true; window.__input.jumpPressed = true; }, () => { window.__input.jump = false; });
+    bindBtn('btn-action', () => { window.__input.shoot = true; window.__input.shootPressed = true; }, () => { window.__input.shoot = false; });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <script type="module" src="js/game.js"></script>
 </body>
 </html>
