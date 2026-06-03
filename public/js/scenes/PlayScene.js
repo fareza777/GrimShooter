@@ -125,15 +125,17 @@ export class PlayScene extends Phaser.Scene {
             const x = 400 + Math.random() * (this.levelWidth - 800);
             const isFlying = Math.random() < 0.3;
             
+            let enemy; // Deklarasikan di sini agar bisa diakses di luar if/else
+            
             if (isFlying) {
-                const enemy = this.enemies.create(x, 400 + Math.random() * 200, 'enemy_drone');
+                enemy = this.enemies.create(x, 400 + Math.random() * 200, 'enemy_drone');
                 enemy.health = 2;
                 enemy.speed = 80 + (this.currentLevel * 2);
                 enemy.direction = -1;
                 enemy.isFlying = true;
                 enemy.startY = enemy.y;
             } else {
-                const enemy = this.enemies.create(x, groundY - 100, 'enemy');
+                enemy = this.enemies.create(x, groundY - 100, 'enemy');
                 enemy.health = 2 + Math.floor(this.currentLevel / 10);
                 enemy.speed = 60 + (this.currentLevel * 2);
                 enemy.direction = -1;
