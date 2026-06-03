@@ -6,7 +6,6 @@ export class BootScene extends Phaser.Scene {
     preload() {
         console.log('BootScene: Preloading assets...');
         
-        // Gunakan this.make.graphics({ add: false }) agar lebih aman di fase preload
         const createTexture = (key, width, height, drawFn) => {
             const g = this.make.graphics({ add: false });
             drawFn(g);
@@ -14,13 +13,11 @@ export class BootScene extends Phaser.Scene {
             g.destroy();
         };
 
-        // 1. Sky
         createTexture('sky', 800, 600, (g) => {
             g.fillGradientStyle(0x0f0c29, 0x0f0c29, 0x302b63, 0x24243e, 1);
             g.fillRect(0, 0, 800, 600);
         });
 
-        // 2. Stars
         createTexture('stars', 800, 600, (g) => {
             for (let i = 0; i < 50; i++) {
                 g.fillStyle(0xffffff, Math.random() * 0.8 + 0.2);
@@ -28,7 +25,6 @@ export class BootScene extends Phaser.Scene {
             }
         });
 
-        // 3. Mountains
         createTexture('mountain', 800, 600, (g) => {
             g.fillStyle(0x1a1a2e, 1);
             g.beginPath();
@@ -43,7 +39,6 @@ export class BootScene extends Phaser.Scene {
             g.fillPath();
         });
 
-        // 4. Ground
         createTexture('ground', 64, 64, (g) => {
             g.fillStyle(0x2d3436, 1);
             g.fillRect(0, 0, 64, 64);
@@ -53,12 +48,10 @@ export class BootScene extends Phaser.Scene {
             g.fillRect(0, 0, 64, 4);
         });
 
-        // 5. Player
         this.createPlayerTexture('player_idle', 0);
         this.createPlayerTexture('player_run1', 1);
         this.createPlayerTexture('player_run2', 2);
 
-        // 6. Enemies
         createTexture('enemy', 32, 48, (g) => {
             g.fillStyle(0xd63031, 1); g.fillRect(4, 16, 24, 24);
             g.fillStyle(0x636e72, 1); g.fillRect(8, 4, 16, 16);
@@ -72,7 +65,6 @@ export class BootScene extends Phaser.Scene {
             g.fillStyle(0x2d3436, 1); g.fillRect(4, 10, 24, 4);
         });
 
-        // 7. Bullets
         createTexture('bullet', 8, 8, (g) => {
             g.fillStyle(0xf1c40f, 1); g.fillCircle(4, 4, 4);
             g.fillStyle(0xffffff, 0.8); g.fillCircle(4, 4, 2);
@@ -82,7 +74,6 @@ export class BootScene extends Phaser.Scene {
             g.fillStyle(0xff7675, 1); g.fillCircle(4, 4, 4);
         });
 
-        // 8. Power-ups
         createTexture('powerup_weapon', 24, 24, (g) => {
             g.fillStyle(0x0984e3, 0.8); g.fillCircle(12, 12, 12);
             g.lineStyle(2, 0x74b9ff, 1); g.strokeCircle(12, 12, 12);
@@ -93,7 +84,6 @@ export class BootScene extends Phaser.Scene {
             g.lineStyle(2, 0x55efc4, 1); g.strokeCircle(12, 12, 12);
         });
 
-        // 9. Particles
         createTexture('spark', 4, 4, (g) => {
             g.fillStyle(0xf1c40f, 1); g.fillCircle(2, 2, 2);
         });
@@ -132,7 +122,12 @@ export class BootScene extends Phaser.Scene {
     }
 
     create() {
-        console.log('BootScene: Creating animations and starting PlayScene...');
+        console.log('=== BOOT SCENE CREATE EXECUTED ===');
+        // Teks debug raksasa untuk memastikan scene ini berjalan
+        this.add.text(300, 300, 'BOOT SCENE\nRUNNING', { 
+            fontSize: '48px', fill: '#00ff00', fontStyle: 'bold', align: 'center', stroke: '#000', strokeThickness: 6 
+        }).setOrigin(0.5);
+
         this.anims.create({
             key: 'player_run',
             frames: [
@@ -144,7 +139,9 @@ export class BootScene extends Phaser.Scene {
             repeat: -1
         });
 
-        console.log('BootScene: Starting PlayScene.');
-        this.scene.start('PlayScene');
+        console.log('BootScene: Starting PlayScene in 1.5 seconds...');
+        this.time.delayedCall(1500, () => {
+            this.scene.start('PlayScene');
+        });
     }
 }

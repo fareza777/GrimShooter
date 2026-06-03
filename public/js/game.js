@@ -7,11 +7,11 @@ const config = {
     backgroundColor: '#0d001a',
     pixelArt: true,
     scale: {
-        mode: Phaser.Scale.HEIGHT_CONTROLS_WIDTH,
+        // Menggunakan FIT lebih stabil untuk memastikan canvas tidak berukuran 0x0
+        mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: 600,
-        height: 800,
-        expandParent: false
+        height: 800
     },
     physics: {
         default: 'arcade',
@@ -25,13 +25,15 @@ const config = {
 
 window.addEventListener('load', () => {
     try {
+        console.log('=== PHASER INITIALIZING ===');
         const game = new Phaser.Game(config);
         window.__game = game;
+        console.log('=== PHASER INITIALIZED SUCCESSFULLY ===');
     } catch (err) {
+        console.error('=== PHASER INIT ERROR ===', err);
         const el = document.getElementById('game-container');
         if (el) {
-            el.innerHTML = '<div style="padding:24px;color:#ff5555;background:#222;"><h2>Failed to start game</h2><p>' + (err && err.message ? err.message : String(err)) + '</p></div>';
+            el.innerHTML = '<div style="padding:24px;color:#ff5555;background:#222;border:2px solid red;"><h2>CRITICAL ERROR</h2><p>' + (err && err.message ? err.message : String(err)) + '</p></div>';
         }
-        console.error('Phaser init error:', err);
     }
 });

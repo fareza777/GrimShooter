@@ -6,24 +6,26 @@ export class PlayScene extends Phaser.Scene {
     }
 
     create() {
-        console.log('PlayScene created, Level:', this.currentLevel);
+        console.log('=== PLAY SCENE CREATE EXECUTED ===');
         this.score = 0;
         this.isGameOver = false;
         const width = this.scale.width; // 600
         const height = this.scale.height; // 800
         
-        // 1. Dynamic Level Width & World Bounds (Tinggi diperbesar agar player bisa jatuh)
+        // Teks debug raksasa untuk memastikan scene ini berjalan
+        this.add.text(300, 300, 'PLAY SCENE\nLOADED', { 
+            fontSize: '48px', fill: '#ffff00', fontStyle: 'bold', align: 'center', stroke: '#000', strokeThickness: 6 
+        }).setOrigin(0.5);
+
         this.levelWidth = 1600 + (this.currentLevel * 200);
         this.physics.world.setBounds(0, 0, this.levelWidth, 1200);
         this.cameras.main.setBounds(0, 0, this.levelWidth, 1200);
 
-        // 2. Environment (Parallax)
         this.bgStars = this.add.tileSprite(this.levelWidth / 2, height / 2, this.levelWidth, height, 'stars');
         this.bgStars.setScrollFactor(0.1);
         this.bgMountains = this.add.tileSprite(this.levelWidth / 2, height - 150, this.levelWidth, 400, 'mountain');
         this.bgMountains.setScrollFactor(0.3);
 
-        // 3. Solvable Ground & Pits Generation
         this.platforms = this.physics.add.staticGroup();
         const segmentWidth = 64;
         const totalSegments = Math.ceil(this.levelWidth / segmentWidth);
@@ -31,13 +33,10 @@ export class PlayScene extends Phaser.Scene {
 
         for (let i = 0; i < totalSegments; i++) {
             const x = i * segmentWidth;
-            const isStartOrEnd = i < 6 || i > totalSegments - 8; // Safe zones
+            const isStartOrEnd = i < 6 || i > totalSegments - 8;
             
             if (!isStartOrEnd && skipNext <= 0 && Math.random() < 0.2) {
-                // Guaranteed solvable gap: max 2 segments (128px)
                 skipNext = Math.floor(Math.random() * 2) + 1;
-                
-                // Add a floating platform ABOVE the gap to ensure it's solvable
                 const platformY = 550 + Math.random() * 100;
                 this.platforms.create(x + 32, platformY, 'ground').refreshBody();
                 continue; 
@@ -52,18 +51,16 @@ export class PlayScene extends Phaser.Scene {
             this.platforms.create(x, 764, 'ground').refreshBody();
         }
 
-        // 4. Additional Safe Floating Platforms
         const numPlatforms = 3 + Math.floor(this.currentLevel / 5);
         for (let i = 0; i < numPlatforms; i++) {
             const x = 400 + Math.random() * (this.levelWidth - 800);
-            const y = 450 + Math.random() * 150; // High enough to not block ground movement
+            const y = 450 + Math.random() * 150;
             this.platforms.create(x, y, 'ground').refreshBody();
             this.platforms.create(x + 64, y, 'ground').refreshBody();
         }
 
-        // 5. Player Setup
         this.player = this.physics.add.sprite(100, 600, 'player_idle');
-        this.player.setCollideWorldBounds(true); // Aman dan stabil
+        this.player.setCollideWorldBounds(true);
         this.player.setBounce(0.1);
         this.playerSpeed = 250;
         this.jumpVelocity = -450;
@@ -73,12 +70,9 @@ export class PlayScene extends Phaser.Scene {
         this.player.armor = 0;
         this.player.isInvincible = false;
 
-        // 6. Camera Follow
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-
         this.physics.add.collider(this.player, this.platforms);
 
-        // 7. Particle Emitters
         this.muzzleFlash = this.add.particles(0, 0, 'spark', {
             speed: 100, scale: { start: 1, end: 0 }, blendMode: 'ADD', lifespan: 100, on: false
         });
@@ -87,26 +81,20 @@ export class PlayScene extends Phaser.Scene {
             scale: { start: 0.5, end: 1.5 }, blendMode: 'NORMAL', lifespan: 600, gravityY: -50, on: false
         });
 
-        // 8. Groups
         this.bullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 50, runChildUpdate: true });
         this.enemies = this.physics.add.group();
         this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 30, runChildUpdate: true });
         this.powerups = this.physics.add.group();
 
-        // 9. Collisions
         this.physics.add.collider(this.enemies, this.platforms);
         this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
         this.physics.add.overlap(this.enemyBullets, this.player, this.hitPlayer, null, this);
         this.physics.add.overlap(this.enemies, this.player, this.hitPlayer, null, this);
         this.physics.add.overlap(this.player, this.powerups, this.collectPowerUp, null, this);
 
-        // 10. Goal / Exit Portal
         this.createGoal();
-
-        // 11. Spawn Entities
         this.spawnLevelEntities();
 
-        // 12. UI Text
         this.levelText = this.add.text(20, 20, `LEVEL ${this.currentLevel}`, { 
             fontSize: '28px', fill: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 
         }).setScrollFactor(0);
@@ -127,7 +115,7 @@ export class PlayScene extends Phaser.Scene {
         
         for (let i = 0; i < numEnemies; i++) {
             const x = 400 + Math.random() * (this.levelWidth - 800);
-            const isFlying = Math.random() < 0.3; // 30% chance for flying drone
+            const isFlying = Math.random() < 0.3;
             
             if (isFlying) {
                 const enemy = this.enemies.create(x, 400 + Math.random() * 200, 'enemy_drone');
@@ -268,7 +256,6 @@ export class PlayScene extends Phaser.Scene {
             }
         });
 
-        // FIX: Fall into pit = Game Over (y > 900 karena world bounds 1200)
         if (this.player.y > 900) {
             this.hitPlayer(this.player, null);
         }
