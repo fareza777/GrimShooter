@@ -6,14 +6,16 @@ export class PlayScene extends Phaser.Scene {
     }
 
     create() {
+        console.log('PlayScene created, Level:', this.currentLevel);
         this.score = 0;
         this.isGameOver = false;
         const width = this.scale.width; // 600
         const height = this.scale.height; // 800
         
-        // 1. Dynamic Level Width
+        // 1. Dynamic Level Width & World Bounds (Tinggi diperbesar agar player bisa jatuh)
         this.levelWidth = 1600 + (this.currentLevel * 200);
-        this.physics.world.setBounds(0, 0, this.levelWidth, height);
+        this.physics.world.setBounds(0, 0, this.levelWidth, 1200);
+        this.cameras.main.setBounds(0, 0, this.levelWidth, 1200);
 
         // 2. Environment (Parallax)
         this.bgStars = this.add.tileSprite(this.levelWidth / 2, height / 2, this.levelWidth, height, 'stars');
@@ -32,7 +34,7 @@ export class PlayScene extends Phaser.Scene {
             const isStartOrEnd = i < 6 || i > totalSegments - 8; // Safe zones
             
             if (!isStartOrEnd && skipNext <= 0 && Math.random() < 0.2) {
-                // Guaranteed solvable gap: max 2 segments (128px), easily jumpable
+                // Guaranteed solvable gap: max 2 segments (128px)
                 skipNext = Math.floor(Math.random() * 2) + 1;
                 
                 // Add a floating platform ABOVE the gap to ensure it's solvable
@@ -50,7 +52,7 @@ export class PlayScene extends Phaser.Scene {
             this.platforms.create(x, 764, 'ground').refreshBody();
         }
 
-        // 4. Additional Safe Floating Platforms (Never blocking the path)
+        // 4. Additional Safe Floating Platforms
         const numPlatforms = 3 + Math.floor(this.currentLevel / 5);
         for (let i = 0; i < numPlatforms; i++) {
             const x = 400 + Math.random() * (this.levelWidth - 800);
@@ -61,8 +63,7 @@ export class PlayScene extends Phaser.Scene {
 
         // 5. Player Setup
         this.player = this.physics.add.sprite(100, 600, 'player_idle');
-        // Collide with left/right walls, but NOT bottom (so falling into pit works)
-        this.player.setCollideWorldBounds(true, true, false); 
+        this.player.setCollideWorldBounds(true); // Aman dan stabil
         this.player.setBounce(0.1);
         this.playerSpeed = 250;
         this.jumpVelocity = -450;
@@ -73,7 +74,6 @@ export class PlayScene extends Phaser.Scene {
         this.player.isInvincible = false;
 
         // 6. Camera Follow
-        this.cameras.main.setBounds(0, 0, this.levelWidth, height);
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
         this.physics.add.collider(this.player, this.platforms);
@@ -103,7 +103,7 @@ export class PlayScene extends Phaser.Scene {
         // 10. Goal / Exit Portal
         this.createGoal();
 
-        // 11. Spawn Enemies & Powerups
+        // 11. Spawn Entities
         this.spawnLevelEntities();
 
         // 12. UI Text
@@ -145,7 +145,6 @@ export class PlayScene extends Phaser.Scene {
             }
             enemy.setCollideWorldBounds(true);
             
-            // Enemy shooting
             this.time.addEvent({
                 delay: Math.max(800, 1500 - (this.currentLevel * 10)),
                 callback: () => this.enemyShoot(enemy),
@@ -153,7 +152,6 @@ export class PlayScene extends Phaser.Scene {
             });
         }
 
-        // Spawn Powerups randomly on platforms
         const numPowerups = 2 + Math.floor(this.currentLevel / 10);
         for (let i = 0; i < numPowerups; i++) {
             const x = 300 + Math.random() * (this.levelWidth - 600);
@@ -163,7 +161,6 @@ export class PlayScene extends Phaser.Scene {
             pu.type = type;
             pu.body.allowGravity = false;
             
-            // Floating animation
             this.tweens.add({
                 targets: pu,
                 y: y - 10,
@@ -193,11 +190,11 @@ export class PlayScene extends Phaser.Scene {
         if (pu.type === 'weapon') {
             this.player.weaponLevel = Math.min(3, this.player.weaponLevel + 1);
             this.weaponText.setText(`WEAPON: LV ${this.player.weaponLevel}`);
-            this.cameras.main.flash(300, 9, 132, 227); // Blue flash
+            this.cameras.main.flash(300, 9, 132, 227);
         } else if (pu.type === 'armor') {
             this.player.armor = 1;
             this.armorIcon.setVisible(true);
-            this.cameras.main.flash(300, 0, 184, 148); // Green flash
+            this.cameras.main.flash(300, 0, 184, 148);
         }
         this.score += 100;
         this.scoreText.setText(`SCORE: ${this.score}`);
@@ -208,7 +205,6 @@ export class PlayScene extends Phaser.Scene {
 
         const input = window.__input || {};
 
-        // Player Movement
         if (input.left) {
             this.player.setVelocityX(-this.playerSpeed);
             this.player.flipX = true;
@@ -222,7 +218,6 @@ export class PlayScene extends Phaser.Scene {
             this.player.anims.play('player_idle', true);
         }
 
-        // Jump
         if (input.jumpPressed) {
             if (this.player.body.touching.down) {
                 this.player.setVelocityY(this.jumpVelocity);
@@ -230,7 +225,6 @@ export class PlayScene extends Phaser.Scene {
             input.jumpPressed = false;
         }
 
-        // Shoot based on weapon level
         if (input.shoot && this.player.canShoot) {
             this.shoot();
             this.player.canShoot = false;
@@ -239,7 +233,6 @@ export class PlayScene extends Phaser.Scene {
         }
         if (input.shootPressed) input.shootPressed = false;
 
-        // Enemy Patrol Logic
         this.enemies.children.entries.forEach(enemy => {
             if (!enemy.active) return;
             
@@ -264,20 +257,19 @@ export class PlayScene extends Phaser.Scene {
             }
         });
 
-        // Cleanup bullets
         this.bullets.children.entries.forEach(b => {
             if (b.active && (b.x < this.cameras.main.scrollX - 50 || b.x > this.cameras.main.scrollX + 650)) {
                 b.setActive(false).setVisible(false);
             }
         });
         this.enemyBullets.children.entries.forEach(b => {
-            if (b.active && (b.y > this.scale.height || b.x < 0 || b.x > this.levelWidth)) {
+            if (b.active && (b.y > 1200 || b.x < 0 || b.x > this.levelWidth)) {
                 b.setActive(false).setVisible(false);
             }
         });
 
-        // FIX: Fall into pit = Game Over
-        if (this.player.y > 780) {
+        // FIX: Fall into pit = Game Over (y > 900 karena world bounds 1200)
+        if (this.player.y > 900) {
             this.hitPlayer(this.player, null);
         }
     }
@@ -333,12 +325,12 @@ export class PlayScene extends Phaser.Scene {
             this.player.armor = 0;
             this.armorIcon.setVisible(false);
             player.isInvincible = true;
-            player.setTint(0x0984e3); // Blue flash for armor break
+            player.setTint(0x0984e3);
             this.time.delayedCall(1000, () => { 
                 player.isInvincible = false; 
                 player.clearTint(); 
             });
-            return; // Absorbed the hit
+            return;
         }
 
         this.physics.pause();
