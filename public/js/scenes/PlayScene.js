@@ -6,107 +6,115 @@ export class PlayScene extends Phaser.Scene {
     }
 
     create() {
-        console.log('=== PLAY SCENE CREATE EXECUTED ===');
-        this.score = 0;
-        this.isGameOver = false;
-        const width = this.scale.width; // 600
-        const height = this.scale.height; // 800
-        
-        // Teks debug raksasa untuk memastikan scene ini berjalan
-        this.add.text(300, 300, 'PLAY SCENE\nLOADED', { 
-            fontSize: '48px', fill: '#ffff00', fontStyle: 'bold', align: 'center', stroke: '#000', strokeThickness: 6 
-        }).setOrigin(0.5);
-
-        this.levelWidth = 1600 + (this.currentLevel * 200);
-        this.physics.world.setBounds(0, 0, this.levelWidth, 1200);
-        this.cameras.main.setBounds(0, 0, this.levelWidth, 1200);
-
-        this.bgStars = this.add.tileSprite(this.levelWidth / 2, height / 2, this.levelWidth, height, 'stars');
-        this.bgStars.setScrollFactor(0.1);
-        this.bgMountains = this.add.tileSprite(this.levelWidth / 2, height - 150, this.levelWidth, 400, 'mountain');
-        this.bgMountains.setScrollFactor(0.3);
-
-        this.platforms = this.physics.add.staticGroup();
-        const segmentWidth = 64;
-        const totalSegments = Math.ceil(this.levelWidth / segmentWidth);
-        let skipNext = 0;
-
-        for (let i = 0; i < totalSegments; i++) {
-            const x = i * segmentWidth;
-            const isStartOrEnd = i < 6 || i > totalSegments - 8;
+        try {
+            console.log('=== PLAY SCENE CREATE EXECUTED ===');
+            this.score = 0;
+            this.isGameOver = false;
+            const width = this.scale.width; // 600
+            const height = this.scale.height; // 800
             
-            if (!isStartOrEnd && skipNext <= 0 && Math.random() < 0.2) {
-                skipNext = Math.floor(Math.random() * 2) + 1;
-                const platformY = 550 + Math.random() * 100;
-                this.platforms.create(x + 32, platformY, 'ground').refreshBody();
-                continue; 
+            this.add.text(300, 300, 'PLAY SCENE\nLOADED', { 
+                fontSize: '48px', fill: '#ffff00', fontStyle: 'bold', align: 'center', stroke: '#000', strokeThickness: 6 
+            }).setOrigin(0.5);
+
+            this.levelWidth = 1600 + (this.currentLevel * 200);
+            this.physics.world.setBounds(0, 0, this.levelWidth, 1200);
+            this.cameras.main.setBounds(0, 0, this.levelWidth, 1200);
+
+            this.bgStars = this.add.tileSprite(this.levelWidth / 2, height / 2, this.levelWidth, height, 'stars');
+            this.bgStars.setScrollFactor(0.1);
+            this.bgMountains = this.add.tileSprite(this.levelWidth / 2, height - 150, this.levelWidth, 400, 'mountain');
+            this.bgMountains.setScrollFactor(0.3);
+
+            this.platforms = this.physics.add.staticGroup();
+            const segmentWidth = 64;
+            const totalSegments = Math.ceil(this.levelWidth / segmentWidth);
+            let skipNext = 0;
+
+            for (let i = 0; i < totalSegments; i++) {
+                const x = i * segmentWidth;
+                const isStartOrEnd = i < 6 || i > totalSegments - 8;
+                
+                if (!isStartOrEnd && skipNext <= 0 && Math.random() < 0.2) {
+                    skipNext = Math.floor(Math.random() * 2) + 1;
+                    const platformY = 550 + Math.random() * 100;
+                    this.platforms.create(x + 32, platformY, 'ground').refreshBody();
+                    continue; 
+                }
+                
+                if (skipNext > 0) {
+                    skipNext--;
+                    continue;
+                }
+
+                this.platforms.create(x, 700, 'ground').refreshBody();
+                this.platforms.create(x, 764, 'ground').refreshBody();
             }
+
+            const numPlatforms = 3 + Math.floor(this.currentLevel / 5);
+            for (let i = 0; i < numPlatforms; i++) {
+                const x = 400 + Math.random() * (this.levelWidth - 800);
+                const y = 450 + Math.random() * 150;
+                this.platforms.create(x, y, 'ground').refreshBody();
+                this.platforms.create(x + 64, y, 'ground').refreshBody();
+            }
+
+            this.player = this.physics.add.sprite(100, 600, 'player_idle');
+            this.player.setCollideWorldBounds(true);
+            this.player.setBounce(0.1);
+            this.playerSpeed = 250;
+            this.jumpVelocity = -450;
+            this.player.canShoot = true;
+            this.shootDelay = 200;
+            this.player.weaponLevel = 1;
+            this.player.armor = 0;
+            this.player.isInvincible = false;
+
+            this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+            this.physics.add.collider(this.player, this.platforms);
+
+            this.muzzleFlash = this.add.particles(0, 0, 'spark', {
+                speed: 100, scale: { start: 1, end: 0 }, blendMode: 'ADD', lifespan: 100, on: false
+            });
+            this.explosionEmitter = this.add.particles(0, 0, 'smoke', {
+                speed: { min: 50, max: 150 }, angle: { min: 0, max: 360 },
+                scale: { start: 0.5, end: 1.5 }, blendMode: 'NORMAL', lifespan: 600, gravityY: -50, on: false
+            });
+
+            this.bullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 50, runChildUpdate: true });
+            this.enemies = this.physics.add.group();
+            this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 30, runChildUpdate: true });
+            this.powerups = this.physics.add.group();
+
+            this.physics.add.collider(this.enemies, this.platforms);
+            this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
+            this.physics.add.overlap(this.enemyBullets, this.player, this.hitPlayer, null, this);
+            this.physics.add.overlap(this.enemies, this.player, this.hitPlayer, null, this);
+            this.physics.add.overlap(this.player, this.powerups, this.collectPowerUp, null, this);
+
+            this.createGoal();
+            this.spawnLevelEntities();
+
+            this.levelText = this.add.text(20, 20, `LEVEL ${this.currentLevel}`, { 
+                fontSize: '28px', fill: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 
+            }).setScrollFactor(0);
+            this.scoreText = this.add.text(20, 55, `SCORE: ${this.score}`, { 
+                fontSize: '20px', fill: '#f1c40f', fontStyle: 'bold' 
+            }).setScrollFactor(0);
             
-            if (skipNext > 0) {
-                skipNext--;
-                continue;
-            }
-
-            this.platforms.create(x, 700, 'ground').refreshBody();
-            this.platforms.create(x, 764, 'ground').refreshBody();
+            this.weaponText = this.add.text(width - 20, 20, 'WEAPON: LV 1', { 
+                fontSize: '18px', fill: '#0984e3', fontStyle: 'bold' 
+            }).setOrigin(1, 0).setScrollFactor(0);
+            
+            this.armorIcon = this.add.image(width - 20, 50, 'powerup_armor').setScale(0.8).setVisible(false).setScrollFactor(0);
+            
+            console.log('=== PLAY SCENE CREATE COMPLETED SUCCESSFULLY ===');
+        } catch (error) {
+            console.error('=== PLAY SCENE CRASHED ===', error);
+            this.add.text(300, 400, 'PLAY SCENE CRASHED!\nCheck Console (F12)\n' + error.message, { 
+                fontSize: '28px', fill: '#ff0000', fontStyle: 'bold', align: 'center', stroke: '#fff', strokeThickness: 4 
+            }).setOrigin(0.5);
         }
-
-        const numPlatforms = 3 + Math.floor(this.currentLevel / 5);
-        for (let i = 0; i < numPlatforms; i++) {
-            const x = 400 + Math.random() * (this.levelWidth - 800);
-            const y = 450 + Math.random() * 150;
-            this.platforms.create(x, y, 'ground').refreshBody();
-            this.platforms.create(x + 64, y, 'ground').refreshBody();
-        }
-
-        this.player = this.physics.add.sprite(100, 600, 'player_idle');
-        this.player.setCollideWorldBounds(true);
-        this.player.setBounce(0.1);
-        this.playerSpeed = 250;
-        this.jumpVelocity = -450;
-        this.player.canShoot = true;
-        this.shootDelay = 200;
-        this.player.weaponLevel = 1;
-        this.player.armor = 0;
-        this.player.isInvincible = false;
-
-        this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-        this.physics.add.collider(this.player, this.platforms);
-
-        this.muzzleFlash = this.add.particles(0, 0, 'spark', {
-            speed: 100, scale: { start: 1, end: 0 }, blendMode: 'ADD', lifespan: 100, on: false
-        });
-        this.explosionEmitter = this.add.particles(0, 0, 'smoke', {
-            speed: { min: 50, max: 150 }, angle: { min: 0, max: 360 },
-            scale: { start: 0.5, end: 1.5 }, blendMode: 'NORMAL', lifespan: 600, gravityY: -50, on: false
-        });
-
-        this.bullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 50, runChildUpdate: true });
-        this.enemies = this.physics.add.group();
-        this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 30, runChildUpdate: true });
-        this.powerups = this.physics.add.group();
-
-        this.physics.add.collider(this.enemies, this.platforms);
-        this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
-        this.physics.add.overlap(this.enemyBullets, this.player, this.hitPlayer, null, this);
-        this.physics.add.overlap(this.enemies, this.player, this.hitPlayer, null, this);
-        this.physics.add.overlap(this.player, this.powerups, this.collectPowerUp, null, this);
-
-        this.createGoal();
-        this.spawnLevelEntities();
-
-        this.levelText = this.add.text(20, 20, `LEVEL ${this.currentLevel}`, { 
-            fontSize: '28px', fill: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 
-        }).setScrollFactor(0);
-        this.scoreText = this.add.text(20, 55, `SCORE: ${this.score}`, { 
-            fontSize: '20px', fill: '#f1c40f', fontStyle: 'bold' 
-        }).setScrollFactor(0);
-        
-        this.weaponText = this.add.text(width - 20, 20, 'WEAPON: LV 1', { 
-            fontSize: '18px', fill: '#0984e3', fontStyle: 'bold' 
-        }).setOrigin(1, 0).setScrollFactor(0);
-        
-        this.armorIcon = this.add.image(width - 20, 50, 'powerup_armor').setScale(0.8).setVisible(false).setScrollFactor(0);
     }
 
     spawnLevelEntities() {
