@@ -4,128 +4,109 @@ export class BootScene extends Phaser.Scene {
     }
 
     preload() {
-        // 1. Sky & Environment
-        const skyGraphics = this.add.graphics();
-        skyGraphics.fillGradientStyle(0x0f0c29, 0x0f0c29, 0x302b63, 0x24243e, 1);
-        skyGraphics.fillRect(0, 0, 800, 600);
-        skyGraphics.generateTexture('sky', 800, 600);
-        skyGraphics.destroy();
+        console.log('BootScene: Preloading assets...');
+        
+        // Gunakan this.make.graphics({ add: false }) agar lebih aman di fase preload
+        const createTexture = (key, width, height, drawFn) => {
+            const g = this.make.graphics({ add: false });
+            drawFn(g);
+            g.generateTexture(key, width, height);
+            g.destroy();
+        };
 
-        // Stars for background
-        const starGraphics = this.add.graphics();
-        for (let i = 0; i < 50; i++) {
-            starGraphics.fillStyle(0xffffff, Math.random() * 0.8 + 0.2);
-            starGraphics.fillCircle(Math.random() * 800, Math.random() * 400, Math.random() * 2 + 0.5);
-        }
-        starGraphics.generateTexture('stars', 800, 600);
-        starGraphics.destroy();
+        // 1. Sky
+        createTexture('sky', 800, 600, (g) => {
+            g.fillGradientStyle(0x0f0c29, 0x0f0c29, 0x302b63, 0x24243e, 1);
+            g.fillRect(0, 0, 800, 600);
+        });
 
-        const mountainGraphics = this.add.graphics();
-        mountainGraphics.fillStyle(0x1a1a2e, 1);
-        mountainGraphics.beginPath();
-        mountainGraphics.moveTo(0, 600);
-        mountainGraphics.lineTo(100, 400);
-        mountainGraphics.lineTo(250, 500);
-        mountainGraphics.lineTo(400, 350);
-        mountainGraphics.lineTo(600, 450);
-        mountainGraphics.lineTo(800, 380);
-        mountainGraphics.lineTo(800, 600);
-        mountainGraphics.closePath();
-        mountainGraphics.fillPath();
-        mountainGraphics.generateTexture('mountain', 800, 600);
-        mountainGraphics.destroy();
+        // 2. Stars
+        createTexture('stars', 800, 600, (g) => {
+            for (let i = 0; i < 50; i++) {
+                g.fillStyle(0xffffff, Math.random() * 0.8 + 0.2);
+                g.fillCircle(Math.random() * 800, Math.random() * 400, Math.random() * 2 + 0.5);
+            }
+        });
 
-        // 2. Ground Tile
-        const groundGraphics = this.add.graphics();
-        groundGraphics.fillStyle(0x2d3436, 1);
-        groundGraphics.fillRect(0, 0, 64, 64);
-        groundGraphics.fillStyle(0x00b894, 1);
-        groundGraphics.fillRect(0, 0, 64, 12);
-        groundGraphics.fillStyle(0x55efc4, 0.3);
-        groundGraphics.fillRect(0, 0, 64, 4);
-        groundGraphics.generateTexture('ground', 64, 64);
-        groundGraphics.destroy();
+        // 3. Mountains
+        createTexture('mountain', 800, 600, (g) => {
+            g.fillStyle(0x1a1a2e, 1);
+            g.beginPath();
+            g.moveTo(0, 600);
+            g.lineTo(100, 400);
+            g.lineTo(250, 500);
+            g.lineTo(400, 350);
+            g.lineTo(600, 450);
+            g.lineTo(800, 380);
+            g.lineTo(800, 600);
+            g.closePath();
+            g.fillPath();
+        });
 
-        // 3. Player Textures
+        // 4. Ground
+        createTexture('ground', 64, 64, (g) => {
+            g.fillStyle(0x2d3436, 1);
+            g.fillRect(0, 0, 64, 64);
+            g.fillStyle(0x00b894, 1);
+            g.fillRect(0, 0, 64, 12);
+            g.fillStyle(0x55efc4, 0.3);
+            g.fillRect(0, 0, 64, 4);
+        });
+
+        // 5. Player
         this.createPlayerTexture('player_idle', 0);
         this.createPlayerTexture('player_run1', 1);
         this.createPlayerTexture('player_run2', 2);
 
-        // 4. Enemy Textures
-        // Ground Enemy (Robot)
-        const enemyGraphics = this.add.graphics();
-        enemyGraphics.fillStyle(0xd63031, 1);
-        enemyGraphics.fillRect(4, 16, 24, 24);
-        enemyGraphics.fillStyle(0x636e72, 1);
-        enemyGraphics.fillRect(8, 4, 16, 16);
-        enemyGraphics.fillStyle(0xfdcb6e, 1);
-        enemyGraphics.fillRect(18, 8, 6, 4);
-        enemyGraphics.fillStyle(0x2d3436, 1);
-        enemyGraphics.fillRect(0, 20, 12, 8);
-        enemyGraphics.generateTexture('enemy', 32, 48);
-        enemyGraphics.destroy();
+        // 6. Enemies
+        createTexture('enemy', 32, 48, (g) => {
+            g.fillStyle(0xd63031, 1); g.fillRect(4, 16, 24, 24);
+            g.fillStyle(0x636e72, 1); g.fillRect(8, 4, 16, 16);
+            g.fillStyle(0xfdcb6e, 1); g.fillRect(18, 8, 6, 4);
+            g.fillStyle(0x2d3436, 1); g.fillRect(0, 20, 12, 8);
+        });
 
-        // Flying Enemy (Drone)
-        const droneGraphics = this.add.graphics();
-        droneGraphics.fillStyle(0x6c5ce7, 1);
-        droneGraphics.fillCircle(16, 16, 12);
-        droneGraphics.fillStyle(0xfdcb6e, 1);
-        droneGraphics.fillCircle(16, 16, 4);
-        droneGraphics.fillStyle(0x2d3436, 1);
-        droneGraphics.fillRect(4, 10, 24, 4); // Propeller
-        droneGraphics.generateTexture('enemy_drone', 32, 32);
-        droneGraphics.destroy();
+        createTexture('enemy_drone', 32, 32, (g) => {
+            g.fillStyle(0x6c5ce7, 1); g.fillCircle(16, 16, 12);
+            g.fillStyle(0xfdcb6e, 1); g.fillCircle(16, 16, 4);
+            g.fillStyle(0x2d3436, 1); g.fillRect(4, 10, 24, 4);
+        });
 
-        // 5. Bullets
-        const bulletGraphics = this.add.graphics();
-        bulletGraphics.fillStyle(0xf1c40f, 1);
-        bulletGraphics.fillCircle(4, 4, 4);
-        bulletGraphics.fillStyle(0xffffff, 0.8);
-        bulletGraphics.fillCircle(4, 4, 2);
-        bulletGraphics.generateTexture('bullet', 8, 8);
-        bulletGraphics.destroy();
+        // 7. Bullets
+        createTexture('bullet', 8, 8, (g) => {
+            g.fillStyle(0xf1c40f, 1); g.fillCircle(4, 4, 4);
+            g.fillStyle(0xffffff, 0.8); g.fillCircle(4, 4, 2);
+        });
 
-        const eBulletGraphics = this.add.graphics();
-        eBulletGraphics.fillStyle(0xff7675, 1);
-        eBulletGraphics.fillCircle(4, 4, 4);
-        eBulletGraphics.generateTexture('enemy_bullet', 8, 8);
-        eBulletGraphics.destroy();
+        createTexture('enemy_bullet', 8, 8, (g) => {
+            g.fillStyle(0xff7675, 1); g.fillCircle(4, 4, 4);
+        });
 
-        // 6. Power-ups
-        // Weapon Upgrade (Blue Orb)
-        const wpnGraphics = this.add.graphics();
-        wpnGraphics.fillStyle(0x0984e3, 0.8);
-        wpnGraphics.fillCircle(12, 12, 12);
-        wpnGraphics.lineStyle(2, 0x74b9ff, 1);
-        wpnGraphics.strokeCircle(12, 12, 12);
-        wpnGraphics.generateTexture('powerup_weapon', 24, 24);
-        wpnGraphics.destroy();
+        // 8. Power-ups
+        createTexture('powerup_weapon', 24, 24, (g) => {
+            g.fillStyle(0x0984e3, 0.8); g.fillCircle(12, 12, 12);
+            g.lineStyle(2, 0x74b9ff, 1); g.strokeCircle(12, 12, 12);
+        });
 
-        // Armor (Green Shield)
-        const armorGraphics = this.add.graphics();
-        armorGraphics.fillStyle(0x00b894, 0.8);
-        armorGraphics.fillCircle(12, 12, 12);
-        armorGraphics.lineStyle(2, 0x55efc4, 1);
-        armorGraphics.strokeCircle(12, 12, 12);
-        armorGraphics.generateTexture('powerup_armor', 24, 24);
-        armorGraphics.destroy();
+        createTexture('powerup_armor', 24, 24, (g) => {
+            g.fillStyle(0x00b894, 0.8); g.fillCircle(12, 12, 12);
+            g.lineStyle(2, 0x55efc4, 1); g.strokeCircle(12, 12, 12);
+        });
 
-        // 7. Particles
-        const sparkGraphics = this.add.graphics();
-        sparkGraphics.fillStyle(0xf1c40f, 1);
-        sparkGraphics.fillCircle(2, 2, 2);
-        sparkGraphics.generateTexture('spark', 4, 4);
-        sparkGraphics.destroy();
+        // 9. Particles
+        createTexture('spark', 4, 4, (g) => {
+            g.fillStyle(0xf1c40f, 1); g.fillCircle(2, 2, 2);
+        });
 
-        const smokeGraphics = this.add.graphics();
-        smokeGraphics.fillStyle(0x636e72, 0.6);
-        smokeGraphics.fillCircle(4, 4, 4);
-        smokeGraphics.generateTexture('smoke', 8, 8);
-        smokeGraphics.destroy();
+        createTexture('smoke', 8, 8, (g) => {
+            g.fillStyle(0x636e72, 0.6); g.fillCircle(4, 4, 4);
+        });
+
+        console.log('BootScene: Preload complete.');
     }
 
     createPlayerTexture(key, frame) {
-        const g = this.add.graphics();
+        const g = this.make.graphics({ add: false });
         const legOffset = frame === 1 ? 4 : (frame === 2 ? -4 : 0);
         
         g.fillStyle(0x2d3436, 1);
@@ -151,6 +132,7 @@ export class BootScene extends Phaser.Scene {
     }
 
     create() {
+        console.log('BootScene: Creating animations and starting PlayScene...');
         this.anims.create({
             key: 'player_run',
             frames: [
@@ -162,6 +144,7 @@ export class BootScene extends Phaser.Scene {
             repeat: -1
         });
 
+        console.log('BootScene: Starting PlayScene.');
         this.scene.start('PlayScene');
     }
 }
