@@ -6,87 +6,98 @@ export class UIScene extends Phaser.Scene {
     create() {
         const width = this.scale.width;
         const height = this.scale.height;
-        const uiHeight = 150; // Height of the UI area at the bottom
-        const uiY = height - uiHeight + 20;
+        const uiY = height - 100;
 
         // D-Pad (Left side)
-        this.createDPad(80, uiY);
+        this.createDPad(100, uiY);
 
         // Action Buttons (Right side)
-        this.createActionButtons(width - 80, uiY);
+        this.createActionButtons(width - 120, uiY);
     }
 
     createDPad(x, y) {
-        const buttonSize = 60;
-        const gap = 10;
+        const btnSize = 70;
+        const gap = 15;
 
-        // Left button
-        this.createTouchButton(x - buttonSize - gap, y, buttonSize, '◀', 'moveLeft', 'stopLeft');
-        // Right button
-        this.createTouchButton(x + buttonSize + gap, y, buttonSize, '▶', 'moveRight', 'stopRight');
-        // Jump button (placed above or integrated, let's put it slightly above for better ergonomics)
-        this.createTouchButton(x, y - buttonSize - gap, buttonSize, '▲', 'jump', null);
+        // Left
+        this.createModernButton(x - btnSize - gap, y, btnSize, '◀', 'moveLeft', 'stopLeft');
+        // Right
+        this.createModernButton(x + btnSize + gap, y, btnSize, '▶', 'moveRight', 'stopRight');
+        // Jump (placed slightly above for ergonomic thumb reach)
+        this.createModernButton(x, y - btnSize - gap, btnSize, '▲', 'jump', null);
     }
 
     createActionButtons(x, y) {
-        const buttonSize = 70;
+        const btnSize = 85;
         const gap = 20;
 
-        // Shoot button
-        this.createTouchButton(x, y, buttonSize, '🔥', 'shoot', null);
+        // Shoot / Fire button (Larger, prominent)
+        this.createModernButton(x, y, btnSize, '🔥', 'shoot', 'stopShoot', 0xff4757);
     }
 
-    createTouchButton(x, y, size, text, downEvent, upEvent) {
-        // Create a circular graphics object for the button
-        const graphics = this.add.graphics();
-        graphics.fillStyle(0x888888, 0.5);
-        graphics.fillCircle(x, y, size / 2);
-        graphics.lineStyle(2, 0xffffff, 0.8);
-        graphics.strokeCircle(x, y, size / 2);
+    createModernButton(x, y, size, icon, downEvent, upEvent, color = 0x2ed573) {
+        const container = this.add.container(x, y);
+        const isCircle = true;
 
-        // Add text to the button
-        const buttonText = this.add.text(x, y, text, {
+        // Background shape
+        const bg = this.add.graphics();
+        const drawShape = () => {
+            bg.clear();
+            bg.fillStyle(color, 0.3); // Semi-transparent
+            bg.fillCircle(0, 0, size / 2);
+            bg.lineStyle(3, 0xffffff, 0.6);
+            bg.strokeCircle(0, 0, size / 2);
+        };
+        drawShape();
+        container.add(bg);
+
+        // Icon
+        const text = this.add.text(0, 0, icon, {
             fontSize: `${size / 2.5}px`,
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+        container.add(text);
 
-        // Make the entire area interactive
-        const hitArea = new Phaser.Geom.Circle(x, y, size / 2);
-        graphics.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+        // Hit area (invisible, larger for better touch tolerance)
+        const hitArea = new Phaser.Geom.Circle(0, 0, size / 1.5);
+        container.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
-        // Touch events
-        graphics.on('pointerdown', () => {
-            graphics.clear();
-            graphics.fillStyle(0xaaaaaa, 0.7);
-            graphics.fillCircle(x, y, size / 2);
-            graphics.lineStyle(2, 0xffffff, 0.8);
-            graphics.strokeCircle(x, y, size / 2);
+        // Touch Feedback Animations
+        container.on('pointerdown', () => {
+            this.tweens.add({
+                targets: container,
+                scaleX: 0.9,
+                scaleY: 0.9,
+                duration: 50,
+                yoyo: false
+            });
+            bg.clear();
+            bg.fillStyle(color, 0.6); // Brighter on press
+            bg.fillCircle(0, 0, size / 2);
+            bg.lineStyle(3, 0xffffff, 1);
+            bg.strokeCircle(0, 0, size / 2);
+            
             if (downEvent) {
                 this.scene.get('PlayScene').events.emit(downEvent);
             }
         });
 
-        graphics.on('pointerup', () => {
-            graphics.clear();
-            graphics.fillStyle(0x888888, 0.5);
-            graphics.fillCircle(x, y, size / 2);
-            graphics.lineStyle(2, 0xffffff, 0.8);
-            graphics.strokeCircle(x, y, size / 2);
+        const releaseAction = () => {
+            this.tweens.add({
+                targets: container,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 50,
+                yoyo: false
+            });
+            drawShape(); // Reset style
             if (upEvent) {
                 this.scene.get('PlayScene').events.emit(upEvent);
             }
-        });
+        };
 
-        graphics.on('pointerout', () => {
-            graphics.clear();
-            graphics.fillStyle(0x888888, 0.5);
-            graphics.fillCircle(x, y, size / 2);
-            graphics.lineStyle(2, 0xffffff, 0.8);
-            graphics.strokeCircle(x, y, size / 2);
-            if (upEvent) {
-                this.scene.get('PlayScene').events.emit(upEvent);
-            }
-        });
+        container.on('pointerup', releaseAction);
+        container.on('pointerout', releaseAction);
     }
 }
